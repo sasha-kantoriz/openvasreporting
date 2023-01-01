@@ -32,6 +32,7 @@ def implemented_exporters():
         'vulnerability-xlsx': export_to_excel_by_vuln,
         'vulnerability-docx': export_to_word_by_vuln,
         'vulnerability-csv': export_to_csv_by_vuln,
+        'host-docx': export_to_word_by_host,
         'host-xlsx': export_to_excel_by_host,
         'host-csv': export_to_csv_by_host,
         'summary-csv': export_summary_to_csv
@@ -754,6 +755,113 @@ def export_to_csv_by_vuln(vuln_info, template=None, output_file='openvas_report.
                 }
                 writer.writerow(rowdata)
 
+
+def export_to_word_by_host(resulttree: ResultTree, template, output_file='openvas_report.docx'):
+    """
+    Export vulnerabilities info in a Word file.
+
+    :param resulttree: Vulnerability list info
+    :type resulttree: resulttree
+
+    :param output_file: Filename of the Word file
+    :type output_file: str
+
+    :param template: Path to Docx template
+    :type template: str
+
+    :raises: TypeError
+    """
+
+    import matplotlib.pyplot as plt
+    import numpy as np
+    import tempfile
+    import os
+
+    from docx import Document
+    from docx.oxml.shared import qn, OxmlElement
+    from docx.oxml.ns import nsdecls
+    from docx.oxml import parse_xml
+    from docx.shared import Cm
+
+    if not isinstance(resulttree, ResultTree):
+        raise TypeError("Expected ResultTree, got '{}' instead".format(type(resulttree)))
+    else:
+        for key in resulttree.keys():
+            if not isinstance(resulttree[key], Host):
+                raise TypeError("Expected Host, got '{}' instead".format(type(resulttree[key])))
+    if not isinstance(output_file, str):
+        raise TypeError("Expected str, got '{}' instead".format(type(output_file)))
+    else:
+        if not output_file:
+            raise ValueError("output_file must have a valid name.")
+    if template is not None:
+        if not isinstance(template, str):
+            raise TypeError("Expected str, got '{}' instead".format(type(template)))
+    else:
+        # == HAMMER PROGRAMMING (beat it into submission) ==
+        # I had to use pkg_resources because I couldn't find this template any other way.
+        import pkg_resources
+        template = pkg_resources.resource_filename('openvasreporting', 'src/openvas-template.docx')
+
+    # mpl_logger = logging.getLogger('matplotlib')
+    # mpl_logger.setLevel(logging.NOTSET)
+
+    # ====================
+    # DOCUMENT PROPERTIES
+    # ====================
+    document = Document(template)
+
+    doc_prop = document.core_properties
+    doc_prop.title = "OpenVAS Report"
+    doc_prop.category = "Report"
+
+    temp_resulttree = resulttree.sorted_keys_by_rank()
+    for i, key in enumerate(temp_resulttree, 1):
+
+        # this host has any vulnerability whose cvss severity >= min_level?
+        if len(resulttree[key].vuln_list) == 0:
+            continue
+
+        # --------------------
+        # HOST SUMMARY TABLE
+        # --------------------
+        document.add_paragraph('Summary {}'.format(resulttree[key].ip + ' - ' + resulttree[key].host_name))
+
+        table_host_summary = document.add_table(rows=1, cols=8)
+
+        hdr_cells = table_host_summary.rows[0].cells
+        hdr_cells[0].text = "CVSS"
+        hdr_cells[1].text = "Name"
+        hdr_cells[2].text = "oid"
+        hdr_cells[3].text = "Port"
+        hdr_cells[4].text = "Family"
+        hdr_cells[5].text = "Description"
+        hdr_cells[6].text = "Recommendation"
+        hdr_cells[7].text = "Type of fix"
+
+        # --------------------
+        # HOST VULN LIST
+        # --------------------
+        for j, vuln in enumerate(resulttree[key].vuln_list):
+            vuln_row_cells = table_host_summary.add_row().cells
+            vuln_row_cells[0].text = '{:.2f} ({})'.format(vuln.cvss, vuln.level)
+            vuln_row_cells[1].text = vuln.name
+            vuln_row_cells[2].text = vuln.vuln_id
+            port = vuln.hosts[0][1]
+            if port is None or port.number == 0:
+                portnum = 'general'
+            else:
+                portnum = str(port.number)
+            vuln_row_cells[3].text = '{}/{}'.format(portnum, port.protocol)
+            vuln_row_cells[4].text = vuln.family
+            vuln_row_cells[5].text = vuln.description.replace('\n', ' ')
+            vuln_row_cells[6].text = vuln.solution.replace('\n', ' ')
+            vuln_row_cells[7].text = vuln.solution_type
+        document.add_page_break()
+
+    document.save(output_file)
+
+
 def export_to_excel_by_host(resulttree: ResultTree, template=None, output_file='openvas_report.xlsx'):
     """
     Export vulnerabilities info in an Excel file.
@@ -776,7 +884,7 @@ def export_to_excel_by_host(resulttree: ResultTree, template=None, output_file='
     else:
         for key in resulttree.keys():
             if not isinstance(resulttree[key], Host):
-                raise TypeError("Expected Host, got '{}' instead".format(type(x)))
+                raise TypeError("Expected Host, got '{}' instead".format(type(resulttree[key])))
     if not isinstance(output_file, str):
         raise TypeError("Expected str, got '{}' instead".format(type(output_file)))
     else:
