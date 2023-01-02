@@ -827,36 +827,54 @@ def export_to_word_by_host(resulttree: ResultTree, template, output_file='openva
         # --------------------
         document.add_paragraph('Summary {}'.format(resulttree[key].ip + ' - ' + resulttree[key].host_name))
 
-        table_host_summary = document.add_table(rows=1, cols=8)
 
-        hdr_cells = table_host_summary.rows[0].cells
-        hdr_cells[0].text = "CVSS"
-        hdr_cells[1].text = "Name"
-        hdr_cells[2].text = "oid"
-        hdr_cells[3].text = "Port"
-        hdr_cells[4].text = "Family"
-        hdr_cells[5].text = "Description"
-        hdr_cells[6].text = "Recommendation"
-        hdr_cells[7].text = "Type of fix"
+        # table_host_summary = document.add_table(rows=1, cols=8)
+        #
+        # hdr_cells = table_host_summary.rows[0].cells
+        # hdr_cells[0].text = "CVSS"
+        # hdr_cells[1].text = "Name"
+        # hdr_cells[2].text = "oid"
+        # hdr_cells[3].text = "Port"
+        # hdr_cells[4].text = "Family"
+        # hdr_cells[5].text = "Description"
+        # hdr_cells[6].text = "Recommendation"
+        # hdr_cells[7].text = "Type of fix"
 
         # --------------------
         # HOST VULN LIST
         # --------------------
         for j, vuln in enumerate(resulttree[key].vuln_list):
-            vuln_row_cells = table_host_summary.add_row().cells
-            vuln_row_cells[0].text = '{:.2f} ({})'.format(vuln.cvss, vuln.level)
-            vuln_row_cells[1].text = vuln.name
-            vuln_row_cells[2].text = vuln.vuln_id
             port = vuln.hosts[0][1]
             if port is None or port.number == 0:
                 portnum = 'general'
             else:
                 portnum = str(port.number)
-            vuln_row_cells[3].text = '{}/{}'.format(portnum, port.protocol)
-            vuln_row_cells[4].text = vuln.family
-            vuln_row_cells[5].text = vuln.description.replace('\n', ' ')
-            vuln_row_cells[6].text = vuln.solution.replace('\n', ' ')
-            vuln_row_cells[7].text = vuln.solution_type
+            section = 'CVSS:\n{:.2f} ({})\n\nName:\n{}\n\noid:\n{}\n\nPort:\n{}\n\nFamily:\n{}\n\nDescription:\n{}\n\nRecommendation:\n{}\n\nType of fix:\n{}\n\n'.format(
+                vuln.cvss,
+                vuln.level,
+                vuln.name,
+                vuln.vuln_id,
+                '{}/{}'.format(portnum, port.protocol),
+                vuln.family,
+                vuln.description.replace('\n', ' '),
+                vuln.solution.replace('\n', ' '),
+                vuln.solution_type
+            )
+            document.add_paragraph(section)
+            # vuln_row_cells = table_host_summary.add_row().cells
+            # vuln_row_cells[0].text = '{:.2f} ({})'.format(vuln.cvss, vuln.level)
+            # vuln_row_cells[1].text = vuln.name
+            # vuln_row_cells[2].text = vuln.vuln_id
+            # port = vuln.hosts[0][1]
+            # if port is None or port.number == 0:
+            #     portnum = 'general'
+            # else:
+            #     portnum = str(port.number)
+            # vuln_row_cells[3].text = '{}/{}'.format(portnum, port.protocol)
+            # vuln_row_cells[4].text = vuln.family
+            # vuln_row_cells[5].text = vuln.description.replace('\n', ' ')
+            # vuln_row_cells[6].text = vuln.solution.replace('\n', ' ')
+            # vuln_row_cells[7].text = vuln.solution_type
         document.add_page_break()
 
     document.save(output_file)
